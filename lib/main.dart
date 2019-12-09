@@ -2,6 +2,7 @@ import 'package:fimber/fimber.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 import 'package:async/async.dart';
+import 'package:rxdart/rxdart.dart';
 
 void main() {
   Fimber.plantTree(DebugTree());
@@ -142,10 +143,12 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _scanAndGetData() {
     List<BluetoothDescriptor> descriptors;
+    List<BluetoothCharacteristic> characteristics;
+    List<BluetoothService> services;
     List<int> value;
+    bool foundFirstTime = false;
 
     flutterBlue.startScan(timeout: Duration(seconds: 60));
-    List<BluetoothService> services;
     flutterBlue.scanResults.listen((scanResults) => {
       scanResults.forEach((scanResult) async => {
       Fimber.d("Device ::" + scanResult.device.name +" Id: " + scanResult.device.id.toString()),
@@ -155,30 +158,32 @@ class _MyHomePageState extends State<MyHomePage> {
       _scannedDevice = scanResult.device,
       await _scannedDevice.connect(timeout: Duration(seconds: 120), autoConnect: false),
          services = await _scannedDevice.discoverServices(),
+
         services.forEach((service) => {
-        if(service.uuid.toString() == "00002a5e-0000-1000-8000-00805f9b34fb") {
-            Fimber.d("Size :: " + service.characteristics.length.toString()),
+          characteristics = service.characteristics.toSet().toList(),
 
-            service.characteristics.forEach((char) async => {
-            Fimber.d("Element :: " + char.uuid.toString()),
-              descriptors = char.descriptors,
+          characteristics.forEach((char) async =>{
+           // Fimber.d("Char: " + char.uuid.toString()),
+              if(char.uuid.toString() == "00002a5e-0000-1000-8000-00805f9b34fb" && foundFirstTime == false) {
+                Fimber.d("Ok: " + char.uuid.toString()),
+                foundFirstTime = true,
 
-    for(BluetoothDescriptor d in descriptors) {
-      if(d.uuid.toString() == "00002a5e-0000-1000-8000-00805f9b34fb") { // 00002901-0000-1000-8000-00805f9b34fb
-        value = await d.read(),
-        Fimber.d("Value : " + value.toString() + " What: " + d.uuid.toString()),
-      } else {
-        Fimber.d("Not vall"),
-      }
+                await char.setNotifyValue(true),
+                    char.value.listen((value) {
+                  // do something with new value
+                      Fimber.d("Byte: " + value.toString());
+                }),
 
-    }
+              }
           }),
-           }
-        })
+
+
+        }),
+       // _scannedDevice.disconnect(),
+
       }
       })
     });
-
 
   }
 
