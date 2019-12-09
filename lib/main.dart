@@ -72,8 +72,8 @@ class _MyHomePageState extends State<MyHomePage> {
               padding: EdgeInsets.only(left: 50.0, right: 50.0),
               color: Theme.of(context).primaryColorDark,
               textColor: Theme.of(context).primaryColorLight,
-              child: Text("Scan and get Data", textScaleFactor: 1.5),
-              onPressed: _scanAndGetData,
+              child: Text("Scan For Nonin and get Byte Data", textScaleFactor: 1.5),
+              onPressed: _scanForNoninAndGetByteData,
             ),
           ],
         ),
@@ -141,7 +141,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   }
 
-  void _scanAndGetData() {
+  void _scanForNoninAndGetByteData() {
     List<BluetoothDescriptor> descriptors;
     List<BluetoothCharacteristic> characteristics;
     List<BluetoothService> services;
@@ -171,7 +171,10 @@ class _MyHomePageState extends State<MyHomePage> {
                 await char.setNotifyValue(true),
                     char.value.listen((value) {
                   // do something with new value
-                      Fimber.d("Byte: " + value.toString());
+                      if(value.length > 0) {
+                        Fimber.d("Byte: " + value.toString());
+                        // _scannedDevice.disconnect();
+                      }
                 }),
 
               }
