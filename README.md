@@ -1,4 +1,4 @@
-# flutter_blue_app
+# flutter_app_test
 
 A new Flutter application.
 

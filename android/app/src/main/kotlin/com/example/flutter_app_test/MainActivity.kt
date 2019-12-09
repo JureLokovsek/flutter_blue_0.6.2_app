@@ -1,4 +1,4 @@
-package com.app.flutter.jl.example.flutter_blue_app
+package com.example.flutter_app_test
 
 import android.os.Bundle
 
