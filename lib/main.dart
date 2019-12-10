@@ -4,6 +4,8 @@ import 'package:flutter_blue/flutter_blue.dart';
 import 'package:async/async.dart';
 import 'package:rxdart/rxdart.dart';
 
+import 'utils.dart';
+
 void main() {
   Fimber.plantTree(DebugTree());
   runApp(MyApp());
@@ -115,7 +117,7 @@ class _MyHomePageState extends State<MyHomePage> {
       // do something with scan result
       for (var scanResult in scanResults) {
         Fimber.d("Device ::" + scanResult.device.name +" Id: " + scanResult.device.id.toString());
-        if(scanResult.device.id.toString() == _noninAddress) {
+        if(Utils.isDeviceNameNonin3230(scanResult.device.name.toString())) {
           Fimber.d("Device found:");
           flutterBlue.stopScan();
           var device = scanResult.device;
