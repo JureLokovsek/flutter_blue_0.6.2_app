@@ -36,16 +36,11 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
 
-  FlutterBlue flutterBlue = FlutterBlue.instance;
+  FlutterBlue _flutterBlueInstance = FlutterBlue.instance;
+  BluetoothDevice _bluetoothDevice;
 
-  var _scannedDevice;
-
-//  String _miBand3Address = "E3:22:C4:77:73:E8";
-  String _noninAddress = "00:1C:05:FF:4E:5B";
- // String _BATTERY_LEVEL_CHARACTERISTIC = "00002a19-0000-1000-8000-00805f9b34fb";
- // String _BATTERY_LEVEL_SERVICE = "0000180f-0000-1000-8000-00805f9b34fb";
+  String _BATTERY_LEVEL_CHARACTERISTIC = "00002a19-0000-1000-8000-00805f9b34fb";
   String _PLX_SPOT_CHECK_MEASUREMENT_CHARACTERISTIC = "00002a5e-0000-1000-8000-00805f9b34fb";
-  //String _PLX_SPOT_CHECK_MEASUREMENT_SERVICE = "00001822-0000-1000-8000-00805f9b34fb";
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +56,7 @@ class _MyHomePageState extends State<MyHomePage> {
               color: Theme.of(context).primaryColorDark,
               textColor: Theme.of(context).primaryColorLight,
               child: Text("Start Scan", textScaleFactor: 1.5),
-              onPressed: _startScan,
+              onPressed: _startScanForDeviceProperties,
             ),
             RaisedButton(
               padding: EdgeInsets.only(left: 50.0, right: 50.0),
@@ -74,8 +69,22 @@ class _MyHomePageState extends State<MyHomePage> {
               padding: EdgeInsets.only(left: 50.0, right: 50.0),
               color: Theme.of(context).primaryColorDark,
               textColor: Theme.of(context).primaryColorLight,
+              child: Text("Disconnect", textScaleFactor: 1.5),
+              onPressed: _disconnect,
+            ),
+            RaisedButton(
+              padding: EdgeInsets.only(left: 50.0, right: 50.0),
+              color: Theme.of(context).primaryColorDark,
+              textColor: Theme.of(context).primaryColorLight,
               child: Text("Scan For Nonin and get Byte Data", textScaleFactor: 1.5),
               onPressed: _scanForNoninAndGetByteData,
+            ),
+            RaisedButton(
+              padding: EdgeInsets.only(left: 50.0, right: 50.0),
+              color: Theme.of(context).primaryColorDark,
+              textColor: Theme.of(context).primaryColorLight,
+              child: Text("Just Testing", textScaleFactor: 1.5),
+              onPressed: _justTesting,
             ),
           ],
         ),
@@ -88,38 +97,38 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  void _startScan() {
+  void _startScanForDeviceProperties() {
     Fimber.d("Test Ble Clicked");
-    flutterBlue.setLogLevel(LogLevel.debug);
+    _flutterBlueInstance.setLogLevel(LogLevel.debug);
 
     // TODO: info stuff ... https://pub.dev/packages/flutter_blue#-readme-tab
 
-    flutterBlue.isOn.asStream()
+    _flutterBlueInstance.isOn.asStream()
         .take(1)
         .listen((status) => {
       Fimber.d("Is On: " + status.toString()),
     });
 
-    flutterBlue.isAvailable.asStream()
+    _flutterBlueInstance.isAvailable.asStream()
         .take(1)
         .listen((status) => {
       Fimber.d("Is Available: " + status.toString()),
     });
 
-    flutterBlue.isScanning
+    _flutterBlueInstance.isScanning
         .take(1)
         .listen((status) => {
       Fimber.d("Is isScanning: " + status.toString()),
     });
 
-    flutterBlue.startScan(timeout: Duration(seconds: 60));
-    flutterBlue.scanResults.listen((scanResults) async {
+    _flutterBlueInstance.startScan(timeout: Duration(seconds: 60));
+    _flutterBlueInstance.scanResults.listen((scanResults) async {
       // do something with scan result
       for (var scanResult in scanResults) {
         Fimber.d("Device ::" + scanResult.device.name +" Id: " + scanResult.device.id.toString());
-        if(Utils.isDeviceNameNonin3230(scanResult.device.name.toString())) {
+        if(Utils.isDeviceNameNonin3230(scanResult.device.name.toString())) { // TODO: scanning for Nonin 3230.
           Fimber.d("Device found:");
-          flutterBlue.stopScan();
+          _flutterBlueInstance.stopScan();
           var device = scanResult.device;
           await device.connect(timeout: Duration(seconds: 20), autoConnect: false);
           List<BluetoothService> services = await device.discoverServices();
@@ -139,8 +148,6 @@ class _MyHomePageState extends State<MyHomePage> {
         }
       }
     });
-
-
   }
 
   void _scanForNoninAndGetByteData() {
@@ -149,41 +156,53 @@ class _MyHomePageState extends State<MyHomePage> {
     List<BluetoothService> services;
     List<int> value;
     bool foundFirstTime = false;
+    Future<List<int>> list;
 
-    flutterBlue.startScan(timeout: Duration(seconds: 60));
-    flutterBlue.scanResults.listen((scanResults) => {
+    _flutterBlueInstance.startScan(timeout: Duration(seconds: 60));
+    Future<List<BluetoothService>> ok;
+    Stream<bool> oh;
+    _flutterBlueInstance.scanResults.listen((scanResults) => {
       scanResults.forEach((scanResult) async => {
       Fimber.d("Device ::" + scanResult.device.name +" Id: " + scanResult.device.id.toString()),
-      if(scanResult.device.id.toString() == _noninAddress) {
+      if(Utils.isDeviceNameNonin3230(scanResult.device.name.toString())) {
       Fimber.d("Device found:"),
-      flutterBlue.stopScan(),
-      _scannedDevice = scanResult.device,
-      await _scannedDevice.connect(timeout: Duration(seconds: 120), autoConnect: false),
-         services = await _scannedDevice.discoverServices(),
+      _flutterBlueInstance.stopScan(),
+      _bluetoothDevice = scanResult.device,
+      await _bluetoothDevice.connect(timeout: Duration(seconds: 120), autoConnect: false),
+       services = await _bluetoothDevice.discoverServices(),
+//        oh = _bluetoothDevice.isDiscoveringServices,
+//        oh.take(1)
+//        .distinct()
+//        .listen((status)=> {
+//        if(status) {
+//                Fimber.d("Discovering Services: " + status.toString()),
+//              } else {
+//                Fimber.d("Discovering Services: " + status.toString()),
+//              }
+//        }).onDone(()=> getBatteryLevelNonin3230(services, _BATTERY_LEVEL_CHARACTERISTIC)),
 
-        services.forEach((service) => {
-          characteristics = service.characteristics.toSet().toList(),
-
-          characteristics.forEach((char) async =>{
-           // Fimber.d("Char: " + char.uuid.toString()),
-              if(char.uuid.toString() == "00002a5e-0000-1000-8000-00805f9b34fb" && foundFirstTime == false) {
-                Fimber.d("Ok: " + char.uuid.toString()),
-                foundFirstTime = true,
-
-                await char.setNotifyValue(true),
-                    char.value.listen((value) {
-                  // do something with new value
-                      if(value.length > 0) {
-                        Fimber.d("Byte: " + value.toString());
-                        // _scannedDevice.disconnect();
-                      }
-                }),
-
-              }
-          }),
-
-
+        getBatteryLevelNonin3230(services, _BATTERY_LEVEL_CHARACTERISTIC)
+        .then((val) => {
+          Fimber.d("Val: " + val.toString()),
         }),
+       //  services.forEach((service) => {
+        //  characteristics = service.characteristics.toSet().toList(),
+
+//          characteristics.forEach((characteristic) =>{
+//              // Fimber.d("Char: " + characteristic.uuid.toString()),
+//              if(characteristic.uuid.toString() == _BATTERY_LEVEL_CHARACTERISTIC && foundFirstTime == false) {
+//                Fimber.d("Characteristic found: " + characteristic.uuid.toString()),
+//                foundFirstTime = true,
+//              //  getDataFromNotifyCharacteristic(characteristic),
+//                list = characteristic.read(),
+//                list.then((value)=> {
+//                  Fimber.d("Battery Values: " + value.toString()),
+//                }),
+//              }
+//          }),
+
+       // }),
+
        // _scannedDevice.disconnect(),
 
       }
@@ -192,16 +211,107 @@ class _MyHomePageState extends State<MyHomePage> {
 
   }
 
+  Future<List<int>> getBatteryLevelNonin3230(List<BluetoothService> services, String batteryCharacteristic) async {
+    bool foundFirstTime = false;
+   // int batteryLevel;
+    List<int> batteryLevelValues;
+    //List<BluetoothCharacteristic> listWithDuplicatedCharacteristics = List<BluetoothCharacteristic>();
+    List<BluetoothCharacteristic> characteristicList = List<BluetoothCharacteristic>();
+    services.forEach((service) => {
+      characteristicList.addAll(service.characteristics),
+    });
+
+//    BluetoothCharacteristic batteryChar = characteristicList.firstWhere((characteristic)=> characteristic.uuid.toString() == _BATTERY_LEVEL_CHARACTERISTIC);
+//    Observable.just(batteryChar)
+//    .distinct()
+//    .take(1)
+//    .listen((char) => {
+//      Fimber.d("Char: " + char.uuid.toString()),
+//    });
+
+
+    for(final char in characteristicList){
+      Fimber.d("Char: " + char.uuid.toString()); // 00002a19-0000-1000-8000-00805f9b34fb
+      if(char.uuid.toString() == _BATTERY_LEVEL_CHARACTERISTIC && foundFirstTime == false) {
+        foundFirstTime = true;
+        Fimber.d("Char is present: Start reading: " + char.uuid.toString());
+        batteryLevelValues = await char.read();
+        _bluetoothDevice.disconnect();
+        break;
+      }
+      return batteryLevelValues;
+    }
+    return batteryLevelValues;
+
+//    services.forEach((service) => {
+//      service.characteristics.toSet().toList().forEach((characteristic) async => {
+//        // Fimber.d("Char: " + characteristic.uuid.toString()),
+//        if(characteristic.uuid.toString() == batteryCharacteristic && foundFirstTime == false) {
+//          Fimber.d("Characteristic found: " + characteristic.uuid.toString()),
+//          foundFirstTime = true,
+//          batteryLevelValues = await characteristic.read(),
+//          batteryLevel = batteryLevelValues.elementAt(0).toInt(),
+//        } else {
+//          Fimber.d("Characteristic not found in the provided service list: " + batteryCharacteristic),
+//        }
+//      }),
+//    });
+  }
+
+  void _justTesting() {
+    List<BluetoothDevice> list = scanForDevices(5);
+  }
+
+  List<BluetoothDevice> scanForDevices(int scanDurationInSeconds) {
+    Fimber.d("Scan Started");
+    List<BluetoothDevice> bluetoothDevicesList = List<BluetoothDevice>();
+    _flutterBlueInstance.startScan(timeout: Duration(seconds: scanDurationInSeconds));
+    _flutterBlueInstance.scanResults.listen((scanResults) => {
+      scanResults.forEach((scanResult) => {
+        Fimber.d("Discovered Device ::" + scanResult.device.name +" Id: " + scanResult.device.id.toString()),
+        bluetoothDevicesList.add(scanResult.device),
+      })
+    });
+    return bluetoothDevicesList;
+  }
+
+  Future<List<int>> getDataFromNotifyCharacteristic(BluetoothCharacteristic characteristic) async {
+    Fimber.d("Wating for Data From Notify Characteristic : " + characteristic.uuid.toString());
+    List<int> dataValue = List<int>();
+    await characteristic.setNotifyValue(true);
+    characteristic
+        .value
+        .listen((value) {
+        if(value.length > 0) {
+            Fimber.d("Received data: " + value.toString());
+            dataValue.addAll(value);
+          }
+        });
+    return dataValue;
+  }
+
   void _floatingBarAction() {
     Fimber.d("Floating bar");
   }
 
   void _stopScan() {
-    if(flutterBlue != null) {
-      flutterBlue.stopScan();
+    if(_flutterBlueInstance != null) {
+      _flutterBlueInstance.isScanning
+          .take(1)
+          .listen((status) => {
+        Fimber.d("Is isScanning: " + status.toString()),
+        if(status) {
+          _flutterBlueInstance.stopScan(),
+          Fimber.d("Scanning stoped:"),
+        }
+      });
     }
-    if(_scannedDevice != null) {
-      _scannedDevice.disconnect();
+  }
+
+  void _disconnect() {
+    if(_bluetoothDevice != null) {
+      Fimber.d("Disconnecting from Device: " + _bluetoothDevice.name.toString());
+      _bluetoothDevice.disconnect();
     }
   }
 
