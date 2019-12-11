@@ -39,9 +39,6 @@ class _MyHomePageState extends State<MyHomePage> {
   FlutterBlue _flutterBlueInstance = FlutterBlue.instance;
   BluetoothDevice _bluetoothDevice;
 
-  String _BATTERY_LEVEL_CHARACTERISTIC = "00002a19-0000-1000-8000-00805f9b34fb";
-  String _PLX_SPOT_CHECK_MEASUREMENT_CHARACTERISTIC = "00002a5e-0000-1000-8000-00805f9b34fb";
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -170,92 +167,45 @@ class _MyHomePageState extends State<MyHomePage> {
       _bluetoothDevice = scanResult.device,
       await _bluetoothDevice.connect(timeout: Duration(seconds: 120), autoConnect: false),
        services = await _bluetoothDevice.discoverServices(),
-//        oh = _bluetoothDevice.isDiscoveringServices,
-//        oh.take(1)
-//        .distinct()
-//        .listen((status)=> {
-//        if(status) {
-//                Fimber.d("Discovering Services: " + status.toString()),
-//              } else {
-//                Fimber.d("Discovering Services: " + status.toString()),
-//              }
-//        }).onDone(()=> getBatteryLevelNonin3230(services, _BATTERY_LEVEL_CHARACTERISTIC)),
 
-        getBatteryLevelNonin3230(services, _BATTERY_LEVEL_CHARACTERISTIC)
-        .then((val) => {
-          Fimber.d("Val: " + val.toString()),
+        getSpotCheckMeasurementDataNonin3230Future(services)
+        .then((values)=> {
+          if(values.length > 0) {
+          Fimber.d("Measurement Values: " + values.toString()),
+          }
+        }).then((val) => {
+          getBatteryDataNonin3230Future(services)
+          .then((values) => {
+            if(values.length > 0) {
+              Fimber.d("Battery Values: " + values.toString()),
+            }
+          })
         }),
-       //  services.forEach((service) => {
-        //  characteristics = service.characteristics.toSet().toList(),
 
-//          characteristics.forEach((characteristic) =>{
-//              // Fimber.d("Char: " + characteristic.uuid.toString()),
-//              if(characteristic.uuid.toString() == _BATTERY_LEVEL_CHARACTERISTIC && foundFirstTime == false) {
-//                Fimber.d("Characteristic found: " + characteristic.uuid.toString()),
-//                foundFirstTime = true,
-//              //  getDataFromNotifyCharacteristic(characteristic),
-//                list = characteristic.read(),
-//                list.then((value)=> {
-//                  Fimber.d("Battery Values: " + value.toString()),
-//                }),
-//              }
-//          }),
-
-       // }),
-
-       // _scannedDevice.disconnect(),
-
-      }
+       }
       })
     });
 
   }
 
-  Future<List<int>> getBatteryLevelNonin3230(List<BluetoothService> services, String batteryCharacteristic) async {
+  Future<List<int>> getBatteryDataNonin3230Future(List<BluetoothService> services) async {
+    String _BATTERY_LEVEL_CHARACTERISTIC = "00002a19-0000-1000-8000-00805f9b34fb";
+    List<int> values = List<int>();
     bool foundFirstTime = false;
-   // int batteryLevel;
-    List<int> batteryLevelValues;
-    //List<BluetoothCharacteristic> listWithDuplicatedCharacteristics = List<BluetoothCharacteristic>();
+
     List<BluetoothCharacteristic> characteristicList = List<BluetoothCharacteristic>();
     services.forEach((service) => {
       characteristicList.addAll(service.characteristics),
     });
 
-//    BluetoothCharacteristic batteryChar = characteristicList.firstWhere((characteristic)=> characteristic.uuid.toString() == _BATTERY_LEVEL_CHARACTERISTIC);
-//    Observable.just(batteryChar)
-//    .distinct()
-//    .take(1)
-//    .listen((char) => {
-//      Fimber.d("Char: " + char.uuid.toString()),
-//    });
-
-
-    for(final char in characteristicList){
-      Fimber.d("Char: " + char.uuid.toString()); // 00002a19-0000-1000-8000-00805f9b34fb
-      if(char.uuid.toString() == _BATTERY_LEVEL_CHARACTERISTIC && foundFirstTime == false) {
+    for(final characteristic in characteristicList) {
+      if(characteristic.uuid.toString() == _BATTERY_LEVEL_CHARACTERISTIC && foundFirstTime == false) {
         foundFirstTime = true;
-        Fimber.d("Char is present: Start reading: " + char.uuid.toString());
-        batteryLevelValues = await char.read();
-        _bluetoothDevice.disconnect();
-        break;
+        Fimber.d("Wating For Data From Characteristic : " + characteristic.uuid.toString());
+        values = await characteristic.read();
       }
-      return batteryLevelValues;
     }
-    return batteryLevelValues;
-
-//    services.forEach((service) => {
-//      service.characteristics.toSet().toList().forEach((characteristic) async => {
-//        // Fimber.d("Char: " + characteristic.uuid.toString()),
-//        if(characteristic.uuid.toString() == batteryCharacteristic && foundFirstTime == false) {
-//          Fimber.d("Characteristic found: " + characteristic.uuid.toString()),
-//          foundFirstTime = true,
-//          batteryLevelValues = await characteristic.read(),
-//          batteryLevel = batteryLevelValues.elementAt(0).toInt(),
-//        } else {
-//          Fimber.d("Characteristic not found in the provided service list: " + batteryCharacteristic),
-//        }
-//      }),
-//    });
+    return values;
   }
 
   void _justTesting() {
@@ -275,19 +225,30 @@ class _MyHomePageState extends State<MyHomePage> {
     return bluetoothDevicesList;
   }
 
-  Future<List<int>> getDataFromNotifyCharacteristic(BluetoothCharacteristic characteristic) async {
-    Fimber.d("Wating for Data From Notify Characteristic : " + characteristic.uuid.toString());
-    List<int> dataValue = List<int>();
-    await characteristic.setNotifyValue(true);
-    characteristic
-        .value
-        .listen((value) {
-        if(value.length > 0) {
+  Future<List<int>> getSpotCheckMeasurementDataNonin3230Future(List<BluetoothService> services) async {
+    String _PLX_SPOT_CHECK_MEASUREMENT_CHARACTERISTIC = "00002a5e-0000-1000-8000-00805f9b34fb";
+    List<int> values = List<int>();
+    bool foundFirstTime = false;
+
+    List<BluetoothCharacteristic> characteristicList = List<BluetoothCharacteristic>();
+    services.forEach((service) => {
+      characteristicList.addAll(service.characteristics),
+    });
+
+    for(final characteristic in characteristicList) {
+      if(characteristic.uuid.toString() == _PLX_SPOT_CHECK_MEASUREMENT_CHARACTERISTIC && foundFirstTime == false) {
+        foundFirstTime = true;
+        Fimber.d("Wating For Data From Characteristic : " + characteristic.uuid.toString());
+        await characteristic.setNotifyValue(true);
+        characteristic.value.listen((value) {
+          if(value.length > 0) {
             Fimber.d("Received data: " + value.toString());
-            dataValue.addAll(value);
+            values.addAll(value);
           }
         });
-    return dataValue;
+      }
+    }
+    return values;
   }
 
   void _floatingBarAction() {
