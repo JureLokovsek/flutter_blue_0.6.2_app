@@ -25,6 +25,8 @@ class MyApp extends StatelessWidget {
   }
 }
 
+ // TIP: https://github.com/pauldemarco/flutter_blue/issues/404
+
 class MyHomePage extends StatefulWidget {
   MyHomePage({Key key, this.title}) : super(key: key);
 
@@ -36,8 +38,12 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
 
+  List<BluetoothDescriptor> deviceDescriptors;
+  List<BluetoothCharacteristic> deviceCharacteristics;
+  List<BluetoothService> deviceServices;
+
   FlutterBlue _flutterBlueInstance = FlutterBlue.instance;
-  BluetoothDevice _bluetoothDevice;
+  BluetoothDevice bluetoothDevice;
 
   @override
   Widget build(BuildContext context) {
@@ -148,43 +154,42 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _scanForNoninAndGetByteData() {
-    List<BluetoothDescriptor> descriptors;
-    List<BluetoothCharacteristic> characteristics;
-    List<BluetoothService> services;
 
     _flutterBlueInstance.startScan(timeout: Duration(seconds: 60));
     _flutterBlueInstance.scanResults.listen((scanResults) => {
-      scanResults.forEach((scanResult) async => {
-      Fimber.d("Device ::" + scanResult.device.name +" Id: " + scanResult.device.id.toString()),
-      if(Utils.isDeviceNameNonin3230(scanResult.device.name.toString())) {
-      Fimber.d("Device found:"),
-      _flutterBlueInstance.stopScan(),
-      _bluetoothDevice = scanResult.device,
-      await _bluetoothDevice.connect(timeout: Duration(seconds: 120), autoConnect: false),
-       services = await _bluetoothDevice.discoverServices(),
+      scanResults.forEach((scanResult) async {
+      Fimber.d("Device ::" + scanResult.device.name +" Id: " + scanResult.device.id.toString());
+      if(Utils.isDeviceNameNonin3230(scanResult.device.name.toString()) && scanResult.device.id.toString() == "00:1C:05:FF:4E:5B") {
+      Fimber.d("Device found:");
+      _flutterBlueInstance.stopScan();
+      Future.delayed(Duration(seconds: 2)); //recommend
+      bluetoothDevice = scanResult.device;
+      await bluetoothDevice.connect(timeout: Duration(seconds: 120), autoConnect: false);
+       deviceServices = await bluetoothDevice.discoverServices();
+        initBluetoothServicesCharacteristicsAndDescriptors1(deviceServices, bluetoothDevice);
 
-        getSpotCheckMeasurementDataNonin3230Future(services)
-        .then((values) {
-          if(values.length > 0) {
-          Fimber.d("Measurement Values: " + values.toString());
-          }
-        })
-        .then((val) {
-          getBatteryDataNonin3230Future(services)
-          .then((values) {
-            if(values.length > 0) {
-              Fimber.d("Battery Values: " + values.toString());
-            }
-          });
-        })
-        .then((val) {
-          setupControlPointNotificationNonin3230Future(services)
-          .then((values) => {
-            if(values.length != 0) {
-                Fimber.d("Device name information Values: " + values.toString()),
-            }
-          });
-        })
+//        getSpotCheckMeasurementDataNonin3230Future(deviceServices)
+//        .then((values) {
+//          if(values.length > 0) {
+//          Fimber.d("Measurement Values: " + values.toString());
+//          }
+//        })
+//        .then((val) {
+//          getBatteryDataNonin3230Future(deviceServices)
+//          .then((values) {
+//            if(values.length > 0) {
+//              Fimber.d("Battery Values: " + values.toString());
+//            }
+//          });
+//        })
+//        .then((val) {
+//          setupControlPointNotificationNonin3230Future(services)
+//          .then((values) => {
+//            if(values.length != 0) {
+//                Fimber.d("Device name information Values: " + values.toString()),
+//            }
+//          });
+//        })
 
        }
       })
@@ -255,33 +260,31 @@ class _MyHomePageState extends State<MyHomePage> {
     return values;
   }
 
-  Future<List<int>> setupControlPointNotificationNonin3230Future(List<BluetoothService> services) async {
-    String _NONIN_CONTROL_POINT_CHARACTERISTIC = "1447af80-0d60-11e2-88b6-0002a5d5c51b";
-
-    List<int> values = List<int>();
-    bool foundFirstTime = false;
-
-    List<BluetoothCharacteristic> characteristicList = List<BluetoothCharacteristic>();
-    services.forEach((service) => {
-      characteristicList.addAll(service.characteristics),
-    });
-
-    for(final characteristic in characteristicList) {
-      if(characteristic.uuid.toString() == _NONIN_CONTROL_POINT_CHARACTERISTIC && foundFirstTime == false) {
-        foundFirstTime = true;
-        Fimber.d("Wating For Data From Characteristic Point : " + characteristic.uuid.toString());
-        await characteristic.setNotifyValue(true);
-        characteristic.value.listen((value) {
-          values.addAll(value);
-        });
-      } else {
-        Fimber.d("Not found Point : " + _NONIN_CONTROL_POINT_CHARACTERISTIC);
-      }
-    }
-    return values;
-
-
-  }
+//  Future<List<int>> setupControlPointNotificationNonin3230Future(List<BluetoothService> services) async {
+//    String _NONIN_CONTROL_POINT_CHARACTERISTIC = "1447af80-0d60-11e2-88b6-0002a5d5c51b";
+//
+//    List<int> values = List<int>();
+//    bool foundFirstTime = false;
+//
+//    List<BluetoothCharacteristic> characteristicList = List<BluetoothCharacteristic>();
+//    services.forEach((service) => {
+//      characteristicList.addAll(service.characteristics),
+//    });
+//
+//    for(final characteristic in characteristicList) {
+//      if(characteristic.uuid.toString() == _NONIN_CONTROL_POINT_CHARACTERISTIC && foundFirstTime == false) {
+//        foundFirstTime = true;
+//        Fimber.d("Wating For Data From Characteristic Point : " + characteristic.uuid.toString());
+//        await characteristic.setNotifyValue(true);
+//        characteristic.value.listen((value) {
+//          values.addAll(value);
+//        });
+//      } else {
+//        Fimber.d("Not found Point : " + _NONIN_CONTROL_POINT_CHARACTERISTIC);
+//      }
+//    }
+//    return values;
+//  }
 
 //  Future<List<int>> getDeviceInformationDataNonin3230Future(List<BluetoothService> services) async {
 //    String _MANUFACTURER_NAME_CHARACTERISTIC = "00002a29-0000-1000-8000-00805f9b34fb";
@@ -355,10 +358,51 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _disconnect() {
-    if(_bluetoothDevice != null) {
-      Fimber.d("Disconnecting from Device: " + _bluetoothDevice.name.toString());
-      _bluetoothDevice.disconnect();
+    if(bluetoothDevice != null) {
+      Fimber.d("Disconnecting from Device: " + bluetoothDevice.name.toString());
+      bluetoothDevice.disconnect();
     }
+  }
+
+  initBluetoothServicesCharacteristicsAndDescriptors(List<BluetoothService> services, BluetoothDevice device) {
+    Fimber.d("Discovered Service, Characteristics and Included Services for Device: " + device.name.toUpperCase() +" Address: " + device.id.toString());
+     deviceDescriptors = List<BluetoothDescriptor>();
+     deviceCharacteristics = List<BluetoothCharacteristic>();
+     deviceServices = List<BluetoothService>();
+
+    services.forEach((service){
+      Fimber.d("Discovered Service: " + service.uuid.toString());
+      Fimber.d("\n");
+      deviceServices.add(service);
+      service.characteristics.forEach((characteristics) {
+        Fimber.d("Discovered Characteristics: " + characteristics.uuid.toString());
+        deviceCharacteristics.add(characteristics);
+        characteristics.descriptors.forEach((descriptor) {
+          Fimber.d("Discovered Descriptor: " + descriptor.uuid.toString());
+          deviceDescriptors.add(descriptor);
+        });
+      });
+      Fimber.d("\n \n");
+      service.includedServices.forEach((includedService){
+        Fimber.d("Discovered Included Service: " + includedService.uuid.toString());
+      });
+      Fimber.d("\n \n");
+    });
+    Fimber.d("\n \n");
+  }
+
+  initBluetoothServicesCharacteristicsAndDescriptors1(List<BluetoothService> services, BluetoothDevice device) {
+    Fimber.d("Discovered Service, Characteristics and Included Services for Device: " + device.name.toUpperCase() +" Address: " + device.id.toString());
+//    deviceDescriptors = List<BluetoothDescriptor>();
+//    deviceCharacteristics = List<BluetoothCharacteristic>();
+//    deviceServices = List<BluetoothService>();
+//
+//    services.forEach((service){
+//      service.includedServices.forEach((includedService){
+//        Fimber.d("Discovered Service: " + includedService.uuid.toString());
+//      });
+//      Fimber.d("\n \n");
+//    });
   }
 
 }
